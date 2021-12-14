@@ -105,15 +105,24 @@ for file in os.listdir(directory):
     if filename.endswith('jpg'):
         p = os.path.join(path, filename)
         exif = get_exif(p)
-        t = exif[36867]
-        geotags = get_geotagging(exif)
-        coords = get_coordinates(geotags)
+        if not (36867 in exif.keys()):
+            if filename =='trelleborg.jpg':
+                coords = (55.371834, 13.144162)
+        else:
+                
+            t = exif[36867]
+            geotags = get_geotagging(exif)
+            coords = get_coordinates(geotags)
         locdict[filename] = coords
         tdict[filename] = t
 
 locdata = pd.DataFrame([locdict, tdict]).transpose()
 locdata['name'] = locdata.index
+
+locdata[1]['trelleborg.jpg'] = '2021:07:12 13:20:40'
+locdata[1]['trelleborg2.jpg'] = '2021:07:12 13:21:40'
 locdata = locdata.sort_values(by=[1])
+locdata = locdata.drop(['falun.jpg', 'trelleborg2.jpg'])
 
 
 #G = ox.graph_from_point(locdata[0][0], dist=10000, simplify=True, network_type='drive')
@@ -154,15 +163,27 @@ Gc = G.subgraph(all_nodes)
 place = "Sweden"
 gdf = ox.geocode_to_gdf(place)
 
+x = [row[0][0] for index, row in locdata.iterrows()]
+y = [row[0][1] for index, row in locdata.iterrows()]
+n = [index for index, row in locdata.iterrows()]
+
 # plot the network, but do not show it or close it yet
 fig, ax = ox.plot_graph_routes(Gc, path_list,
-    route_colors='black',
+    route_colors="#545453",
     show=False,
     close=False,
+    #bgcolor="#84a97b",
     bgcolor="white",
-    edge_color="w",
-    edge_linewidth=0.3,
+    edge_color = "#84a97b",
+    route_linewidths = 1,
+    #edge_color="#545453",
+    #edge_linewidth=0,
     node_size=0,
+    route_alpha = 1,
+    #orig_dest_size = 1000,
+    node_color = "#545453",
+    figsize = ((10, 30)),
+   # dpi = 5000,
 )
 
 # to this matplotlib axis, add the place shape as descartes polygon patches
@@ -171,14 +192,20 @@ for geometry in gdf["geometry"].tolist():
         if isinstance(geometry, Polygon):
             geometry = MultiPolygon([geometry])
         for polygon in geometry:
-            patch = PolygonPatch(polygon, fc="k", 
+            patch = PolygonPatch(polygon, 
+                                 
+                                # color ="#84a97b",
+                                 facecolor = "#84a97b", 
                                  #ec="#666666", 
-                                 ec = 'black',
+                                 #ec = "#84a97b",
                                  lw=1, alpha=1, zorder=-1)
             ax.add_patch(patch)
 
 # optionally set up the axes extents
 #plt.imshow(arr_lena, extent=(57.64384, 57.64398, 11.8952, 11.8968), zorder=10)
+ax.scatter(x, y)
+for i, txt in enumerate(n):
+    ax.annotate(txt, (x[i], y[i]), zorder = 10)
 margin = 0.02
 west, south, east, north = gdf.unary_union.bounds
 margin_ns = (north - south) * margin
@@ -189,3 +216,4 @@ ax.set_xlim((west - margin_ew, east + margin_ew))
 plt.show()
 
 
+fig.savefig(path+'plot.png', transparent=False)
